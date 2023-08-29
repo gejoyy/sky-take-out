@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 import java.util.Set;
 
@@ -32,46 +33,47 @@ public class DishController {
     private RedisTemplate redisTemplate;
 
     /**
-     * 新增菜品
+     * 菜品起售停售
      *
-     * @param dishDTO
+     * @param status
+     * @param id
      * @return
      */
-    @PostMapping
-    @ApiOperation("新增菜品")
-    public Result save(@RequestBody DishDTO dishDTO) {
-        log.info("新增菜品：{}", dishDTO);
-        dishService.saveWithFlavor(dishDTO);//后绪步骤开发
-        String key = "dish_" + dishDTO.getCategoryId();
-        cleanCache(key);
+    @PostMapping("/status/{status}")
+    @ApiOperation("菜品起售停售")
+    public Result<String> startOrStop(@PathVariable Integer status, Long id) {
+        dishService.startOrStop(status, id);
+
+        //将所有的菜品缓存数据清理掉，所有以dish_开头的key
+        cleanCache("dish_*");
+
         return Result.success();
     }
 
     /**
-     * 菜品分页查询
+     * 根据分类id查询菜品
      *
-     * @param dishPageQueryDTO
+     * @param categoryId
      * @return
      */
-    @GetMapping("/page")
-    @ApiOperation("菜品分页查询")
-    public Result<PageResult> page(DishPageQueryDTO dishPageQueryDTO) {
-        log.info("菜品分页查询:{}", dishPageQueryDTO);
-        PageResult pageResult = dishService.pageQuery(dishPageQueryDTO);//后绪步骤定义
-        return Result.success(pageResult);
+    @GetMapping("/list")
+    @ApiOperation("根据分类id查询菜品")
+    public Result<List<Dish>> list(Long categoryId) {
+        List<Dish> list = dishService.list(categoryId);
+        return Result.success(list);
     }
 
     /**
-     * 菜品批量删除
+     * 修改菜品
      *
-     * @param ids
+     * @param dishDTO
      * @return
      */
-    @DeleteMapping
-    @ApiOperation("菜品批量删除")
-    public Result delete(@RequestParam List<Long> ids) {
-        log.info("菜品批量删除：{}", ids);
-        dishService.deleteBatch(ids);//后绪步骤实现
+    @PutMapping
+    @ApiOperation("修改菜品")
+    public Result update(@RequestBody DishDTO dishDTO) {
+        log.info("修改菜品：{}", dishDTO);
+        dishService.updateWithFlavor(dishDTO);
 
         //将所有的菜品缓存数据清理掉，所有以dish_开头的key
         cleanCache("dish_*");
@@ -93,16 +95,16 @@ public class DishController {
     }
 
     /**
-     * 修改菜品
+     * 菜品批量删除
      *
-     * @param dishDTO
+     * @param ids
      * @return
      */
-    @PutMapping
-    @ApiOperation("修改菜品")
-    public Result update(@RequestBody DishDTO dishDTO) {
-        log.info("修改菜品：{}", dishDTO);
-        dishService.updateWithFlavor(dishDTO);
+    @DeleteMapping
+    @ApiOperation("菜品批量删除")
+    public Result delete(@RequestParam List<Long> ids) {
+        log.info("菜品批量删除：{}", ids);
+        dishService.deleteBatch(ids);//后绪步骤实现
 
         //将所有的菜品缓存数据清理掉，所有以dish_开头的key
         cleanCache("dish_*");
@@ -110,28 +112,41 @@ public class DishController {
     }
 
     /**
-     * 菜品起售停售
+     * 菜品分页查询
      *
-     * @param status
-     * @param id
+     * @param dishPageQueryDTO
      * @return
      */
-    @PostMapping("/status/{status}")
-    @ApiOperation("菜品起售停售")
-    public Result<String> startOrStop(@PathVariable Integer status, Long id) {
-        dishService.startOrStop(status, id);
+    @GetMapping("/page")
+    @ApiOperation("菜品分页查询")
+    public Result<PageResult> page(DishPageQueryDTO dishPageQueryDTO) {
+        log.info("菜品分页查询:{}", dishPageQueryDTO);
+        PageResult pageResult = dishService.pageQuery(dishPageQueryDTO);//后绪步骤定义
+        return Result.success(pageResult);
+    }
 
-        //将所有的菜品缓存数据清理掉，所有以dish_开头的key
-        cleanCache("dish_*");
-
+    /**
+     * 新增菜品
+     *
+     * @param dishDTO
+     * @return
+     */
+    @PostMapping
+    @ApiOperation("新增菜品")
+    public Result save(@RequestBody DishDTO dishDTO) {
+        log.info("新增菜品：{}", dishDTO);
+        dishService.saveWithFlavor(dishDTO);//后绪步骤开发
+        String key = "dish_" + dishDTO.getCategoryId();
+        cleanCache(key);
         return Result.success();
     }
 
     /**
      * 清理缓存数据
+     *
      * @param pattern
      */
-    private void cleanCache(String pattern){
+    private void cleanCache(String pattern) {
         Set keys = redisTemplate.keys(pattern);
         redisTemplate.delete(keys);
     }
